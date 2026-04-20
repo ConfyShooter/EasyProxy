@@ -271,6 +271,17 @@ class ManifestRewriter:
                     if not line.startswith("#EXT-X-MEDIA:") or 'URI="' not in line:
                         continue
 
+                    # ✅ FIX: Forza la lingua Italiana come DEFAULT se presente
+                    is_italian = any(x in line.lower() for x in ['name="italian"', 'language="it"', 'name="it"'])
+                    if is_italian:
+                        line = line.replace('DEFAULT=NO', 'DEFAULT=YES').replace('AUTOSELECT=NO', 'AUTOSELECT=YES')
+                        # Assicurati che sia YES anche se mancano gli attributi
+                        if 'DEFAULT=' not in line: line = line.replace('#EXT-X-MEDIA:', '#EXT-X-MEDIA:DEFAULT=YES,')
+                        if 'AUTOSELECT=' not in line: line = line.replace('#EXT-X-MEDIA:', '#EXT-X-MEDIA:AUTOSELECT=YES,')
+                    else:
+                        # Declassa le altre lingue
+                        line = line.replace('DEFAULT=YES', 'DEFAULT=NO')
+
                     uri_start = line.find('URI="') + 5
                     uri_end = line.find('"', uri_start)
                     if uri_start <= 4 or uri_end <= uri_start:
@@ -286,16 +297,22 @@ class ManifestRewriter:
                         proxy_media_url = (
                             f"{proxy_base}/proxy/hls/manifest.m3u8?d={encoded_media_url}{header_params}"
                         )
-                    proxied_media_lines.append(
-                        line[:uri_start] + proxy_media_url + line[uri_end:]
-                    )
+                    
+                    # Ricostruisci la linea con l'URL del proxy
+                    new_line = line[:uri_start] + proxy_media_url + line[uri_end:]
+                    
+                    # Metti la traccia italiana in cima alla lista dei media
+                    if is_italian:
+                        proxied_media_lines.insert(0, new_line)
+                    else:
+                        proxied_media_lines.append(new_line)
 
                 rewritten_lines.append("#EXTM3U")
                 for line in lines:
-                    if line.startswith("#EXT-X-MEDIA:") or line.startswith(
-                        "#EXT-X-STREAM-INF:"
-                    ) or (line and not line.startswith("#")):
+                    # Rimuovi tag ridondanti o che verranno aggiunti dopo
+                    if any(line.startswith(x) for x in ["#EXT-X-MEDIA:", "#EXT-X-STREAM-INF:", "#EXTM3U"]) or (line and not line.startswith("#")):
                         continue
+                    if line.strip(): rewritten_lines.append(line)
 
                 rewritten_lines.extend(proxied_media_lines)
                 rewritten_lines.append(highest_quality_stream["inf"])

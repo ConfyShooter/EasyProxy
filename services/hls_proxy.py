@@ -2407,10 +2407,26 @@ class HLSProxy:
                     # Use a pooled curl session if available
                     session_key = f"curl_{session_proxy or 'direct'}"
                     if session_key not in self.curl_sessions or self.curl_sessions[session_key] is None:
-                        self.curl_sessions[session_key] = CurlAsyncSession(impersonate="chrome")
+                        self.curl_sessions[session_key] = CurlAsyncSession(impersonate="chrome124")
                     
                     curl_s = self.curl_sessions[session_key]
                     curl_headers = dict(headers)
+                    
+                    # ✅ FIX: Remove User-Agent from headers to let curl_cffi use the one matching the fingerprint
+                    # A mismatch between the TLS fingerprint and the User-Agent header often causes 403 Forbidden.
+                    if "User-Agent" in curl_headers:
+                        del curl_headers["User-Agent"]
+                    if "user-agent" in curl_headers:
+                        del curl_headers["user-agent"]
+                    
+                    # ✅ FIX: Ensure Referer is set for cccdn.net
+                    if "cccdn.net" in stream_url and "Referer" not in curl_headers:
+                        curl_headers["Referer"] = "https://cinemacity.cc/"
+                    
+                    # Ensure Accept is broad
+                    if "Accept" not in curl_headers:
+                        curl_headers["Accept"] = "*/*"
+
                     curl_proxies = None
                     if session_proxy:
                         curl_proxies = {"http": session_proxy, "https": session_proxy}
