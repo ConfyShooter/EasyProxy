@@ -78,8 +78,15 @@ class VavooExtractor:
             timeout = ClientTimeout(total=60, connect=30, sock_read=30)
             proxy = self._get_random_proxy()
             if proxy:
-                logger.info(f"Using proxy for Vavoo session.")
-                connector = ProxyConnector.from_url(proxy)
+                logger.info(f"Using proxy for Vavoo session: {proxy}")
+                
+                connector_url = proxy
+                rdns = True
+                if connector_url.startswith("socks5h://"):
+                    connector_url = connector_url.replace("socks5h://", "socks5://")
+                    rdns = True
+                
+                connector = ProxyConnector.from_url(connector_url, rdns=rdns)
             else:
                 connector = TCPConnector(
                     limit=0,

@@ -614,13 +614,22 @@ class HLSProxy:
             # Create new session and cache it
             logger.info(f"🌍 Creating proxy session: {proxy}")
             try:
+                # Gestione manuale di socks5h per compatibilità con aiohttp-socks
+                connector_url = proxy
+                rdns = True # Default per SOCKS5
+                if connector_url.startswith("socks5h://"):
+                    connector_url = connector_url.replace("socks5h://", "socks5://")
+                    rdns = True
+                    logger.debug(f"🕵️ SOCKS5h detected: forcing remote DNS resolution")
+
                 # Unlimited connections for maximum speed
                 connector = ProxyConnector.from_url(
-                    proxy,
+                    connector_url,
                     limit=0,  # Unlimited connections
                     limit_per_host=0,  # Unlimited per host
                     keepalive_timeout=60,  # Keep connections alive longer
                     family=socket.AF_INET,  # Force IPv4
+                    rdns=rdns,
                 )
                 timeout = ClientTimeout(total=30)
                 session = ClientSession(timeout=timeout, connector=connector)
