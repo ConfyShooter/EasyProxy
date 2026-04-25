@@ -3,6 +3,8 @@ import re
 from urllib.parse import urljoin, urlparse
 from extractors.base import BaseExtractor, ExtractorError
 
+logger = logging.getLogger(__name__)
+
 class UqloadExtractor(BaseExtractor):
     """Uqload URL extractor."""
 
@@ -45,7 +47,9 @@ class UqloadExtractor(BaseExtractor):
         """Extract Uqload video URL."""
         logger.debug(f"[Uqload] Fetching embed page: {url}")
 
-        status, text, final_url = await self._make_request(url, headers=self.BROWSER_HEADERS)
+        resp = await self._make_request(url, headers=self.BROWSER_HEADERS)
+        text = resp.text
+        final_url = resp.url
 
         logger.debug(f"[Uqload] Page length: {len(text)} chars, final URL: {final_url}")
 
